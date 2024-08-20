@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "stock-market-strategies"
+version = "0.1.0"
+description = ""
+authors = ["Akash <akash.iitr17@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+pandas = "^2.2.2"
+ipykernel = "^6.29.5"
+numpy = "^2.1.0"
+pyyaml = "^6.0.2"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
