@@ -3,20 +3,7 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 
 import pandas as pd
 import numpy as np
-from typing import Dict
-
-def sma_crossover(data: pd.DataFrame, short_window: int = 50, long_window: int = 200) -> bool:
-    short_sma = data['Close'].rolling(window=short_window).mean()
-    long_sma = data['Close'].rolling(window=long_window).mean()
-    return short_sma.iloc[-1] > long_sma.iloc[-1]
-
-def rsi_oversold(data: pd.DataFrame, window: int = 14, threshold: int = 30) -> bool:
-    delta = data['Close'].diff()
-    gain = (delta.where(delta > 0, 0)).rolling(window=window).mean()
-    loss = (-delta.where(delta < 0, 0)).rolling(window=window).mean()
-    rs = gain / loss
-    rsi = 100 - (100 / (1 + rs))
-    return rsi.iloc[-1] < threshold
+import os
 
 class StrategyAnalyzer:
     def __init__(self, stock_data):
@@ -25,36 +12,42 @@ class StrategyAnalyzer:
     def analyze(self, strategies: list) -> pd.DataFrame:
         results = []
         for symbol, data in self.stock_data.items():
-            row = {'Symbol': symbol}
             for strategy in strategies:
                 if strategy == 'SMA Crossover':
-                    row[strategy] = int(self.sma_crossover(data))
+                    strategy_dates = self.sma_crossover(data)
                 elif strategy == 'RSI Oversold':
-                    row[strategy] = int(self.rsi_oversold(data))
-            results.append(row)
-        return pd.DataFrame(results)
+                    strategy_dates = self.rsi_oversold(data)
+                
+                for date in strategy_dates:
+                    results.append({
+                        'Symbol': symbol,
+                        'Strategy': strategy,
+                        'Date': date
+                    })
 
-    def sma_crossover(self, data: pd.DataFrame) -> bool:
-        # Calculate short-term and long-term SMAs
+        df = pd.DataFrame(results)
+        
+        # Ensure the output directory exists
+        os.makedirs('outputs', exist_ok=True)
+        
+        # Save the DataFrame as a parquet file
+        df.to_parquet('outputs/strategies_occurrence.parquet')
+        
+        return df
+
+    def sma_crossover(self, data: pd.DataFrame) -> list:
         short_window = 50
         long_window = 200
         signals = pd.DataFrame(index=data.index)
         signals['short_mavg'] = data['Close'].rolling(window=short_window, min_periods=1, center=False).mean()
         signals['long_mavg'] = data['Close'].rolling(window=long_window, min_periods=1, center=False).mean()
 
-        # Create signals
-        signals['signal'] = 0.0
-        signals['signal'][short_window:] = np.where(signals['short_mavg'][short_window:]
-                                                    > signals['long_mavg'][short_window:], 1.0, 0.0)
+        signals['signal'] = np.where(signals['short_mavg'] > signals['long_mavg'], 1, 0)
+        signals['position'] = signals['signal'].diff()
 
-        # Generate trading orders
-        signals['positions'] = signals['signal'].diff()
+        return signals[signals['position'] == 1].index.tolist()
 
-        # Check if there's a buying opportunity (1.0) in the last 30 days
-        return 1.0 in signals['positions'][-30:].values
-
-    def rsi_oversold(self, data: pd.DataFrame) -> bool:
-        # Calculate RSI
+    def rsi_oversold(self, data: pd.DataFrame) -> list:
         window_length = 14
         close = data['Close']
         delta = close.diff()
@@ -67,7 +60,6 @@ class StrategyAnalyzer:
         rs = roll_up / roll_down
         rsi = 100.0 - (100.0 / (1.0 + rs))
 
-        # Check if RSI is oversold (below 30) in the last 30 days
-        return any(rsi[-30:] < 30)
+        return rsi[rsi < 30].index.tolist()
 
 # You can add more strategy methods here as needed

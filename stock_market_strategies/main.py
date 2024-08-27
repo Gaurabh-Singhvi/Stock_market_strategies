@@ -1,17 +1,17 @@
-
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
 
 from data_reader import DataReader
 from strategies import StrategyAnalyzer
 from backtesting import Backtester
 import argparse
 
-
 def main(verbose=False, show_progress=False):
     print("Welcome to Stock Market Strategies")
-
+    
     # Step 1: Read data
     data_reader = DataReader('data')
-    stock_data = data_reader.read_stock_data(['reliance.NS', 'tcs.NS', 'icicibank.NS'])  # ['AAPL', 'GOOGL', 'MSFT']
+    stock_data = data_reader.read_stock_data() #['reliance.NS', 'tcs.NS', 'icicibank.NS']
     print("Data loaded successfully.")
 
     # Step 2: Analyze strategies
@@ -21,12 +21,10 @@ def main(verbose=False, show_progress=False):
     print(strategy_results)
 
     # Step 3: Run backtest
-    backtester = Backtester(stock_data, strategy_results, 'config/strategy_config.yaml',
-                            verbose=verbose or show_progress)
+    backtester = Backtester(stock_data, 'config/strategy_config.yaml', verbose=verbose or show_progress)
     backtest_results = backtester.run_backtest('2022-01-01', '2022-12-31')
     print("\nBacktest Results:")
     print(backtest_results)
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Stock Market Strategies Backtester")
